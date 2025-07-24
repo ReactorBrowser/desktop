@@ -1,1 +1,3 @@
 /target
+/.env
+/reactor-browser.db
