@@ -48,6 +48,7 @@ impl SimpleComponent for App {
                 gtk::Stack {
                     add_titled[Some(&Screen::Start.to_string()), "Start"] = &gtk::Label {
                         set_label: "Start",
+                        add_css_class: "start-title"
                     },
                     add_titled[Some(&Screen::View.to_string()), "View"] = model.view.widget(),
 
