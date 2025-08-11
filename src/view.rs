@@ -1,28 +1,11 @@
-use std::fmt;
-
 use gtk::prelude::{BoxExt, OrientableExt};
-use relm4::{ComponentParts, ComponentSender, SimpleComponent, gtk, prelude::FactoryVecDeque};
+use relm4::{
+    ComponentParts, ComponentSender, SimpleComponent,
+    gtk::{self, prelude::WidgetExt},
+    prelude::FactoryVecDeque,
+};
 
 use crate::page::{Page, Uri};
-
-#[derive(Clone, Copy, Debug)]
-pub enum Screen {
-    Start,
-    View,
-}
-
-impl fmt::Display for Screen {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Start => "start",
-                Self::View => "view",
-            }
-        )
-    }
-}
 
 pub struct View {
     created_widgets: u32,
@@ -51,8 +34,15 @@ impl SimpleComponent for View {
                 set_stack: Some(&page_box)
             },
 
-            #[local_ref]
-            page_box -> gtk::Stack {},
+            gtk::Box {
+                set_vexpand: true,
+                add_css_class: "page-box-wrapper",
+
+                #[local_ref]
+                page_box -> gtk::Stack {
+                    add_css_class: "page-box",
+                },
+            }
         }
     }
 
