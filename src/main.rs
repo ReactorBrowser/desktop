@@ -1,5 +1,6 @@
 mod app;
 mod page;
+mod tab;
 mod view;
 
 use relm4::RelmApp;
