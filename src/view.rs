@@ -1,8 +1,9 @@
 use gtk::prelude::{BoxExt, OrientableExt};
+use reactor_browser::{create_tab, delete_tab, establish_connection, show_tabs};
 use relm4::{
     ComponentParts, ComponentSender, SimpleComponent,
     gtk::{self, prelude::WidgetExt},
-    prelude::{DynamicIndex, FactoryVecDeque},
+    prelude::FactoryVecDeque,
 };
 
 use crate::{
@@ -18,9 +19,9 @@ pub struct View {
 #[derive(Debug)]
 pub enum ViewMsg {
     Open(String),
-    Close(DynamicIndex),
-    Load(DynamicIndex, String),
-    Unload(DynamicIndex),
+    Close(i32, bool),
+    Load(i32, String),
+    Unload(i32),
 }
 
 #[relm4::component(pub)]
@@ -67,16 +68,26 @@ impl SimpleComponent for View {
         let tabs = FactoryVecDeque::builder()
             .launch(gtk::Box::default())
             .forward(sender.input_sender(), |output| match output {
-                TabOutput::Close(index) => ViewMsg::Close(index),
-                TabOutput::Load(index, uri) => ViewMsg::Load(index, uri),
-                TabOutput::Unload(index) => ViewMsg::Unload(index),
+                TabOutput::Close(id, loaded) => ViewMsg::Close(id, loaded),
+                TabOutput::Load(id, uri) => ViewMsg::Load(id, uri),
+                TabOutput::Unload(id) => ViewMsg::Unload(id),
             });
 
-        let model = View { pages, tabs };
+        let mut model = View { pages, tabs };
 
         let page_stack = model.pages.widget();
         let tab_box = model.tabs.widget();
         let widgets = view_output!();
+
+        let connection = &mut establish_connection();
+
+        let stored_tabs = show_tabs(connection).expect("Error loading tabs");
+        stored_tabs.iter().for_each(|s| {
+            model.tabs.guard().push_back((s.id, s.url.clone()));
+            if s.loaded {
+                sender.input(ViewMsg::Load(s.id, s.url.clone()));
+            }
+        });
 
         ComponentParts { model, widgets }
     }
@@ -84,24 +95,40 @@ impl SimpleComponent for View {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             ViewMsg::Open(uri) => {
-                let index = self.tabs.guard().push_back(uri.clone());
-                sender.input(ViewMsg::Load(index, uri))
+                let connection = &mut establish_connection();
+
+                let tab =
+                    create_tab(connection, &uri, "New tab".into()).expect("Error saving new tab");
+                self.tabs.guard().push_back((tab.id, uri.clone()));
+
+                sender.input(ViewMsg::Load(tab.id, uri))
             }
-            ViewMsg::Close(index) => {
-                self.tabs.guard().remove(index.current_index());
-                sender.input(ViewMsg::Unload(index));
-            }
-            ViewMsg::Load(index, uri) => {
-                self.pages.guard().push_back((index, uri));
-            }
-            ViewMsg::Unload(index) => {
-                let mut guard = self.pages.guard();
-                let found = guard
-                    .iter()
-                    .position(|p| p.tab.current_index() == index.current_index());
+            ViewMsg::Close(id, loaded) => {
+                let connection = &mut establish_connection();
+
+                delete_tab(connection, id).expect("Error deleting tab");
+                let mut guard = self.tabs.guard();
+                let found = guard.iter().position(|t| t.id == id);
                 match found {
-                    Some(index) => {
-                        guard.remove(index);
+                    Some(id) => {
+                        guard.remove(id);
+                    }
+                    None => eprintln!("Error closing tab"),
+                }
+
+                if loaded {
+                    sender.input(ViewMsg::Unload(id));
+                }
+            }
+            ViewMsg::Load(tab_id, uri) => {
+                self.pages.guard().push_back((tab_id, uri));
+            }
+            ViewMsg::Unload(id) => {
+                let mut guard = self.pages.guard();
+                let found = guard.iter().position(|p| p.tab_id == id);
+                match found {
+                    Some(id) => {
+                        guard.remove(id);
                     }
                     None => eprintln!("Error unloading page"),
                 }

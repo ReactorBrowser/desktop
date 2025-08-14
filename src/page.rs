@@ -1,19 +1,16 @@
 use gtk::prelude::WidgetExt;
 use reactor_browser::{create_history, establish_connection};
-use relm4::{
-    FactorySender, factory, gtk,
-    prelude::{DynamicIndex, FactoryComponent},
-};
+use relm4::{FactorySender, factory, gtk, prelude::FactoryComponent};
 use webkit6::{LoadEvent, Settings, WebView, prelude::WebViewExt};
 
 pub struct Page {
-    pub tab: DynamicIndex,
+    pub tab_id: i32,
     pub uri: String,
 }
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Page {
-    type Init = (DynamicIndex, String);
+    type Init = (i32, String);
 
     type Input = ();
     type Output = ();
@@ -49,8 +46,8 @@ impl FactoryComponent for Page {
     }
 
     fn init_model(init: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
-        let (tab, uri) = init;
-        Self { tab, uri }
+        let (tab_id, uri) = init;
+        Self { tab_id, uri }
     }
 
     fn init_widgets(
