@@ -3,19 +3,14 @@ use reactor_browser::{create_history, establish_connection};
 use relm4::{FactorySender, factory, gtk, prelude::FactoryComponent};
 use webkit6::{LoadEvent, Settings, WebView, prelude::WebViewExt};
 
-#[derive(Debug)]
-pub struct Uri {
-    pub id: u32,
-    pub source: String,
-}
-
 pub struct Page {
-    pub uri: Uri,
+    pub tab_id: i32,
+    pub uri: String,
 }
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Page {
-    type Init = Uri;
+    type Init = (i32, String);
 
     type Input = ();
     type Output = ();
@@ -25,7 +20,7 @@ impl FactoryComponent for Page {
 
     view! {
         WebView {
-            load_uri: &self.uri.source,
+            load_uri: &self.uri,
 
             set_valign: gtk::Align::Fill,
             set_vexpand: true,
@@ -50,8 +45,9 @@ impl FactoryComponent for Page {
         }
     }
 
-    fn init_model(uri: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
-        Self { uri }
+    fn init_model(init: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
+        let (tab_id, uri) = init;
+        Self { tab_id, uri }
     }
 
     fn init_widgets(
