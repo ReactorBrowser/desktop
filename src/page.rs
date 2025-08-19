@@ -1,16 +1,13 @@
 use gtk::prelude::WidgetExt;
 use reactor_browser::{create_history, establish_connection};
-use relm4::{
-    factory, gtk, prelude::{DynamicIndex, FactoryComponent, FactoryVecDeque}, FactorySender
-};
+use relm4::{FactorySender, factory, gtk, prelude::FactoryComponent};
 use webkit6::{LoadEvent, Settings, WebView, prelude::WebViewExt};
 
-use crate::{tab::{Tab, TabOutput}};
-
 pub struct Page {
-    pub tab: DynamicIndex,
+    pub tab_id: i32,
     pub uri: String,
 }
+
 #[derive(Debug)]
 pub enum PageMsg {
     GoBack,
@@ -21,7 +18,7 @@ pub enum PageMsg {
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Page {
-    type Init = (DynamicIndex, String);
+    type Init = (i32, String);
 
     type Input = PageMsg;
     type Output = ();
@@ -55,36 +52,34 @@ impl FactoryComponent for Page {
             },
         }
     }
-    
-    fn init_model(init: Self::Init, _index: &Self::Index, sender: FactorySender<Self>) -> Self {
-        let (tab, uri) = init;
-        
-        Self { tab, uri }
+
+    fn init_model(init: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
+        let (tab_id, uri) = init;
+
+        Self { tab_id, uri }
     }
+
     fn init_widgets(
         &mut self,
-        index: &Self::Index,
+        _index: &Self::Index,
         root: Self::Root,
         returned_widget: &<Self::ParentWidget as factory::FactoryView>::ReturnedWidget,
-        sender: FactorySender<Self>,
+        _sender: FactorySender<Self>,
     ) -> Self::Widgets {
         let returned_widget = returned_widget.clone();
-        let cloned_index = index.clone().current_index(); 
-        returned_widget.set_name(&cloned_index.to_string());
-        root.connect_title_notify(move |webview,| {
-
-            
-        });
+        returned_widget.set_name(&self.tab_id.to_string());
+        // root.connect_title_notify(move |webview| {});
 
         let widgets = view_output!();
         widgets
     }
+
     fn update_with_view(
-            &mut self,
-            widgets: &mut Self::Widgets,
-            message: Self::Input,
-            sender: FactorySender<Self>,
-        ) {
+        &mut self,
+        widgets: &mut Self::Widgets,
+        message: Self::Input,
+        _sender: FactorySender<Self>,
+    ) {
         let webview = &widgets.webview;
         match message {
             PageMsg::GoBack => {
@@ -96,8 +91,7 @@ impl FactoryComponent for Page {
             PageMsg::Reload => {
                 webview.reload();
             }
-            PageMsg::UpdateNavState => {
-            }
+            PageMsg::UpdateNavState => {}
         }
     }
 }

@@ -44,7 +44,57 @@ pub fn delete_history(
 ) -> Result<(), diesel::result::Error> {
     use crate::schema::history::dsl::*;
 
-    diesel::delete(history.filter(id.eq(history_id))).execute(conn)?;
+    diesel::delete(history.find(history_id)).execute(conn)?;
+
+    Ok(())
+}
+
+pub fn create_tab(
+    conn: &mut SqliteConnection,
+    url: &str,
+    title: Option<&str>,
+) -> Result<Tab, diesel::result::Error> {
+    use crate::schema::tabs;
+
+    let new_tab = NewTab { url, title };
+
+    let tab = diesel::insert_into(tabs::table)
+        .values(&new_tab)
+        .returning(Tab::as_returning())
+        .get_result(conn)?;
+    Ok(tab)
+}
+
+pub fn show_tabs(conn: &mut SqliteConnection) -> Result<Vec<Tab>, diesel::result::Error> {
+    use crate::schema::tabs::dsl::*;
+
+    Ok(tabs.select(Tab::as_select()).load(conn)?)
+}
+
+pub fn load_tab(conn: &mut SqliteConnection, tab_id: i32) -> Result<(), diesel::result::Error> {
+    use crate::schema::tabs::dsl::*;
+
+    diesel::update(tabs.find(tab_id))
+        .set(loaded.eq(true))
+        .execute(conn)?;
+
+    Ok(())
+}
+
+pub fn unload_tab(conn: &mut SqliteConnection, tab_id: i32) -> Result<(), diesel::result::Error> {
+    use crate::schema::tabs::dsl::*;
+
+    diesel::update(tabs.find(tab_id))
+        .set(loaded.eq(false))
+        .execute(conn)?;
+
+    Ok(())
+}
+
+pub fn delete_tab(conn: &mut SqliteConnection, tab_id: i32) -> Result<(), diesel::result::Error> {
+    use crate::schema::tabs::dsl::*;
+
+    diesel::delete(tabs.find(tab_id)).execute(conn)?;
 
     Ok(())
 }

@@ -5,7 +5,11 @@ edition = "2024"
 
 [dependencies]
 chrono = "0.4.41"
-diesel = { version = "2.2.12", features = ["sqlite", "chrono"] }
+diesel = { version = "2.2.12", features = [
+    "sqlite",
+    "returning_clauses_for_sqlite_3_35",
+    "chrono",
+] }
 dotenvy = "0.15.7"
 relm4 = "0.9.1"
 webkit6 = "0.4.0"

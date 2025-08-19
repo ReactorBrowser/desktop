@@ -1,12 +1,9 @@
-use gtk::prelude::ButtonExt;
-use relm4::{
-    gtk::{self, prelude::WidgetExt},
-    prelude::{DynamicIndex, FactoryComponent},
-};
-
-use crate::view::{View, ViewMsg};
+use gtk::prelude::{ButtonExt, WidgetExt};
+use reactor_browser::{establish_connection, load_tab, unload_tab};
+use relm4::{gtk, prelude::FactoryComponent};
 
 pub struct Tab {
+    pub id: i32,
     title: String,
     uri: String,
     loaded: bool,
@@ -14,21 +11,23 @@ pub struct Tab {
 
 #[derive(Debug)]
 pub enum TabInput {
-    Load(DynamicIndex),
-    Unload(DynamicIndex),
+    Show,
+    Close,
+    Load,
+    Unload,
 }
 
 #[derive(Debug)]
 pub enum TabOutput {
-    Close(DynamicIndex),
-    Load(DynamicIndex, String),
-    Show(DynamicIndex),
-    Unload(DynamicIndex),
+    Show(i32),
+    Close(i32, bool),
+    Load(i32, String),
+    Unload(i32),
 }
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Tab {
-    type Init = String;
+    type Init = (i32, String);
 
     type Input = TabInput;
     type Output = TabOutput;
@@ -38,46 +37,61 @@ impl FactoryComponent for Tab {
 
     view! {
         gtk::Box {
-            
             add_css_class: "linked",
+
             gtk::Button {
                 add_css_class: "tab",
                 set_halign: gtk::Align::Fill,
                 set_hexpand: true,
                 #[watch]
                 set_label: "Title",
-                connect_clicked[sender, index] => move |_| {
-                    sender.output(TabOutput::Show(index.clone())).unwrap();
-                }
+                connect_clicked => TabInput::Show,
             },
+
             gtk::Button::with_label("Close") {
-                connect_clicked[sender, index] => move |_| {
-                    sender.output(TabOutput::Close(index.clone())).unwrap();
-                }
+                connect_clicked => TabInput::Close,
             },
         }
 
     }
 
     fn init_model(
-        uri: Self::Init,
+        init: Self::Init,
         _index: &Self::Index,
         _sender: relm4::FactorySender<Self>,
     ) -> Self {
-        Self { uri, title: " ".to_string(), loaded: true }
+        let (id, uri) = init;
+        Self {
+            id,
+            title: " ".to_string(),
+            uri,
+            loaded: true,
+        }
     }
 
     fn update(&mut self, msg: Self::Input, sender: relm4::FactorySender<Self>) {
         match msg {
-            TabInput::Load(index) => {
+            TabInput::Show => sender.output(TabOutput::Show(self.id)).unwrap(),
+            TabInput::Close => sender
+                .output(TabOutput::Close(self.id, self.loaded))
+                .unwrap(),
+            TabInput::Load => {
+                let connection = &mut establish_connection();
+
+                load_tab(connection, self.id).expect("Error loading tab");
+
                 self.loaded = true;
                 sender
-                    .output(TabOutput::Load(index, self.uri.clone()))
+                    .output(TabOutput::Load(self.id, self.uri.clone()))
                     .unwrap();
             }
-            TabInput::Unload(index) => {
+            TabInput::Unload => {
+                let connection = &mut establish_connection();
+
+                unload_tab(connection, self.id).expect("Error unloading tab");
+
                 self.loaded = false;
-                sender.output(TabOutput::Unload(index)).unwrap();
+                sender.output(TabOutput::Unload(self.id)).unwrap();
             }
         }
     }

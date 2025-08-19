@@ -1,11 +1,12 @@
-use gtk::prelude::{BoxExt, OrientableExt};
+use gtk::prelude::{BoxExt, OrientableExt, WidgetExt};
+use reactor_browser::{create_tab, delete_tab, establish_connection, show_tabs};
 use relm4::{
-    factory::widgets, gtk::{self, prelude::WidgetExt}, prelude::{DynamicIndex, FactoryVecDeque}, ComponentParts, ComponentSender, Controller, RelmWidgetExt, SimpleComponent
+    ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, gtk, prelude::FactoryVecDeque,
 };
-use webkit6::{glib::property::PropertyGet, prelude::*};
+use webkit6::prelude::*;
 
 use crate::{
-    page::{Page, PageMsg},
+    page::Page,
     tab::{Tab, TabOutput},
 };
 
@@ -17,11 +18,11 @@ pub struct View {
 #[derive(Debug)]
 pub enum ViewMsg {
     Open(String),
-    Close(DynamicIndex),
-    Show(DynamicIndex),
-    Load(DynamicIndex, String),
-    Unload(DynamicIndex),
-    Back
+    Show(i32),
+    Close(i32, bool),
+    Load(i32, String),
+    Unload(i32),
+    Back,
 }
 
 #[relm4::component(pub)]
@@ -35,7 +36,7 @@ impl SimpleComponent for View {
         gtk::Paned {
             set_orientation: gtk::Orientation::Horizontal,
             set_position: 200,
-            
+
             #[wrap(Some)]
             set_start_child = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
@@ -52,12 +53,12 @@ impl SimpleComponent for View {
                             #[name = "back"]
                             gtk::Button {
                                 set_icon_name?: Some("arrow-left-symbolic"),
-                                
+
                             },
                             #[name = "forward"]
                             gtk::Button {
                                 set_icon_name?: Some("arrow-right-symbolic"),
-                                
+
                             },
                             #[name = "reload"]
                             gtk::Button {
@@ -65,12 +66,15 @@ impl SimpleComponent for View {
                             },
                         },
                     },
+
                     gtk::Entry {
                         set_placeholder_text: Some("Search"),
                     },
+
                     gtk::Button::with_label("Open new page") {
                         connect_clicked => ViewMsg::Open("https://www.google.com/".into())
                     },
+
                     gtk::ScrolledWindow {
                         set_valign: gtk::Align::Fill,
                         set_vexpand: true,
@@ -80,7 +84,7 @@ impl SimpleComponent for View {
                             set_spacing: 5,
                         },
                     },
-                
+
             },
             #[wrap(Some)]
             set_end_child = &gtk::Box {
@@ -109,17 +113,27 @@ impl SimpleComponent for View {
         let tabs = FactoryVecDeque::builder()
             .launch(gtk::Box::default())
             .forward(sender.input_sender(), |output| match output {
-                TabOutput::Close(index)=>ViewMsg::Close(index),
-                TabOutput::Load(index,uri)=>ViewMsg::Load(index,uri),
-                TabOutput::Show(index)=>ViewMsg::Show(index),
-                TabOutput::Unload(index)=>ViewMsg::Unload(index),
+                TabOutput::Show(id) => ViewMsg::Show(id),
+                TabOutput::Close(id, loaded) => ViewMsg::Close(id, loaded),
+                TabOutput::Load(id, uri) => ViewMsg::Load(id, uri),
+                TabOutput::Unload(id) => ViewMsg::Unload(id),
             });
 
-        let model = View { pages, tabs };
+        let mut model = View { pages, tabs };
 
         let page_stack = model.pages.widget();
         let tab_box = model.tabs.widget();
         let widgets = view_output!();
+
+        let connection = &mut establish_connection();
+
+        let stored_tabs = show_tabs(connection).expect("Error loading tabs");
+        stored_tabs.iter().for_each(|s| {
+            model.tabs.guard().push_back((s.id, s.url.clone()));
+            if s.loaded {
+                sender.input(ViewMsg::Load(s.id, s.url.clone()));
+            }
+        });
 
         ComponentParts { model, widgets }
     }
@@ -127,32 +141,42 @@ impl SimpleComponent for View {
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             ViewMsg::Open(uri) => {
-                let index = self.tabs.guard().push_back(uri.clone());
-                println!("{:?}", self.pages.widget().visible_child_name());
-                sender.input(ViewMsg::Load(index, uri))
+                let connection = &mut establish_connection();
+
+                let tab =
+                    create_tab(connection, &uri, "New tab".into()).expect("Error saving new tab");
+                self.tabs.guard().push_back((tab.id, uri.clone()));
+
+                sender.input(ViewMsg::Load(tab.id, uri))
             }
-            ViewMsg::Close(index) => {
-                self.tabs.guard().remove(index.current_index());
-                sender.input(ViewMsg::Unload(index));
-            }
-            ViewMsg::Back => {
-            }
-            ViewMsg::Show(index) => {
-                self.pages
-                    .widget()
-                    .set_visible_child_name(&index.current_index().to_string());
-            }
-            ViewMsg::Load(index, uri) => {
-                self.pages.guard().push_back((index, uri));
-            }
-            ViewMsg::Unload(index) => {
-                let mut guard = self.pages.guard();
-                let found = guard
-                    .iter()
-                    .position(|p| p.tab.current_index() == index.current_index());
+            ViewMsg::Back => {}
+            ViewMsg::Show(id) => self.pages.widget().set_visible_child_name(&id.to_string()),
+            ViewMsg::Close(id, loaded) => {
+                let connection = &mut establish_connection();
+
+                delete_tab(connection, id).expect("Error deleting tab");
+                let mut guard = self.tabs.guard();
+                let found = guard.iter().position(|t| t.id == id);
                 match found {
-                    Some(index) => {
-                        guard.remove(index);
+                    Some(id) => {
+                        guard.remove(id);
+                    }
+                    None => eprintln!("Error closing tab"),
+                }
+
+                if loaded {
+                    sender.input(ViewMsg::Unload(id));
+                }
+            }
+            ViewMsg::Load(tab_id, uri) => {
+                self.pages.guard().push_back((tab_id, uri));
+            }
+            ViewMsg::Unload(id) => {
+                let mut guard = self.pages.guard();
+                let found = guard.iter().position(|p| p.tab_id == id);
+                match found {
+                    Some(id) => {
+                        guard.remove(id);
                     }
                     None => eprintln!("Error unloading page"),
                 }

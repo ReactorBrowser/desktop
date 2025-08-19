@@ -1,25 +1,20 @@
-use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt, WidgetExt};
+use gtk::prelude::{BoxExt, GtkWindowExt, OrientableExt, WidgetExt};
 use relm4::{
-    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
-    SimpleComponent, gtk,
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
+    gtk,
 };
 
-use crate::view::{View, ViewMsg};
+use crate::view::View;
 
 pub struct App {
     view: Controller<View>,
-}
-
-#[derive(Debug)]
-pub enum AppMsg {
-    OpenTab,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for App {
     type Init = ();
 
-    type Input = AppMsg;
+    type Input = ();
     type Output = ();
 
     view! {
@@ -39,7 +34,7 @@ impl SimpleComponent for App {
     fn init(
         _init: Self::Init,
         root: Self::Root,
-        sender: ComponentSender<Self>,
+        _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let view = View::builder().launch(()).detach();
 
@@ -48,11 +43,5 @@ impl SimpleComponent for App {
         let widgets = view_output!();
 
         ComponentParts { model, widgets }
-    }
-
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
-        match msg {
-            AppMsg::OpenTab => todo!(),
-        }
     }
 }
