@@ -1,10 +1,13 @@
 use gtk::prelude::ButtonExt;
 use relm4::{
-    gtk,
+    gtk::{self, prelude::WidgetExt},
     prelude::{DynamicIndex, FactoryComponent},
 };
 
+use crate::view::{View, ViewMsg};
+
 pub struct Tab {
+    title: String,
     uri: String,
     loaded: bool,
 }
@@ -19,6 +22,7 @@ pub enum TabInput {
 pub enum TabOutput {
     Close(DynamicIndex),
     Load(DynamicIndex, String),
+    Show(DynamicIndex),
     Unload(DynamicIndex),
 }
 
@@ -34,26 +38,25 @@ impl FactoryComponent for Tab {
 
     view! {
         gtk::Box {
+            
+            add_css_class: "linked",
+            gtk::Button {
+                add_css_class: "tab",
+                set_halign: gtk::Align::Fill,
+                set_hexpand: true,
+                #[watch]
+                set_label: "Title",
+                connect_clicked[sender, index] => move |_| {
+                    sender.output(TabOutput::Show(index.clone())).unwrap();
+                }
+            },
             gtk::Button::with_label("Close") {
                 connect_clicked[sender, index] => move |_| {
                     sender.output(TabOutput::Close(index.clone())).unwrap();
                 }
             },
-
-            if self.loaded {
-                gtk::Button::with_label("Unload") {
-                    connect_clicked[sender, index] => move |_| {
-                        sender.input(TabInput::Unload(index.clone()));
-                    }
-                }
-            } else {
-                gtk::Button::with_label("Load") {
-                    connect_clicked[sender, index] => move |_| {
-                        sender.input(TabInput::Load(index.clone()));
-                    }
-                }
-            },
         }
+
     }
 
     fn init_model(
@@ -61,7 +64,7 @@ impl FactoryComponent for Tab {
         _index: &Self::Index,
         _sender: relm4::FactorySender<Self>,
     ) -> Self {
-        Self { uri, loaded: true }
+        Self { uri, title: " ".to_string(), loaded: true }
     }
 
     fn update(&mut self, msg: Self::Input, sender: relm4::FactorySender<Self>) {

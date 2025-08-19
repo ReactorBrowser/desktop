@@ -26,14 +26,10 @@ impl SimpleComponent for App {
         gtk::Window {
             set_title: Some("Reactor"),
             add_css_class: "root",
-
+            set_default_width: 1000,
+            set_default_height: 800,
            gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-                set_margin_all: 16,
-
-                gtk::Button::with_label("Open new page") {
-                    connect_clicked => AppMsg::OpenTab
-                },
 
                 append = model.view.widget(),
            }
@@ -56,9 +52,7 @@ impl SimpleComponent for App {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            AppMsg::OpenTab => self
-                .view
-                .emit(ViewMsg::Open("https://www.google.com/".into())),
+            AppMsg::OpenTab => todo!(),
         }
     }
 }
