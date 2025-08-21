@@ -8,25 +8,33 @@ pub struct Page {
     pub uri: String,
 }
 
+#[derive(Debug)]
+pub enum PageMsg {
+    GoBack,
+    GoForward,
+    Reload,
+    UpdateNavState,
+}
+
 #[relm4::factory(pub)]
 impl FactoryComponent for Page {
     type Init = (i32, String);
 
-    type Input = ();
+    type Input = PageMsg;
     type Output = ();
 
     type CommandOutput = ();
     type ParentWidget = gtk::Stack;
 
     view! {
+        #[name(webview)]
         WebView {
             load_uri: &self.uri,
-
+            add_css_class: "page-box-wrapper",
             set_valign: gtk::Align::Fill,
             set_vexpand: true,
             set_halign: gtk::Align::Fill,
             set_hexpand: true,
-
             set_settings = &Settings {
                 set_enable_developer_extras: true,
                 set_enable_write_console_messages_to_stdout: true
@@ -47,6 +55,7 @@ impl FactoryComponent for Page {
 
     fn init_model(init: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
         let (tab_id, uri) = init;
+
         Self { tab_id, uri }
     }
 
@@ -58,13 +67,31 @@ impl FactoryComponent for Page {
         _sender: FactorySender<Self>,
     ) -> Self::Widgets {
         let returned_widget = returned_widget.clone();
-        root.connect_title_notify(move |webview| {
-            if let Some(title) = webview.title() {
-                returned_widget.set_title(title.as_str());
-            }
-        });
+        returned_widget.set_name(&self.tab_id.to_string());
+        // root.connect_title_notify(move |webview| {});
 
         let widgets = view_output!();
         widgets
+    }
+
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        message: Self::Input,
+        _sender: FactorySender<Self>,
+    ) {
+        let webview = &widgets.webview;
+        match message {
+            PageMsg::GoBack => {
+                webview.go_back();
+            }
+            PageMsg::GoForward => {
+                webview.go_forward();
+            }
+            PageMsg::Reload => {
+                webview.reload();
+            }
+            PageMsg::UpdateNavState => {}
+        }
     }
 }

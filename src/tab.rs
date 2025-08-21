@@ -1,15 +1,17 @@
-use gtk::prelude::ButtonExt;
+use gtk::prelude::{ButtonExt, WidgetExt};
 use reactor_browser::{establish_connection, load_tab, unload_tab};
 use relm4::{gtk, prelude::FactoryComponent};
 
 pub struct Tab {
     pub id: i32,
+    title: String,
     uri: String,
     loaded: bool,
 }
 
 #[derive(Debug)]
 pub enum TabInput {
+    Show,
     Close,
     Load,
     Unload,
@@ -17,6 +19,7 @@ pub enum TabInput {
 
 #[derive(Debug)]
 pub enum TabOutput {
+    Show(i32),
     Close(i32, bool),
     Load(i32, String),
     Unload(i32),
@@ -34,20 +37,22 @@ impl FactoryComponent for Tab {
 
     view! {
         gtk::Box {
-            gtk::Button::with_label("Close") {
-                connect_clicked => TabInput::Close
+            add_css_class: "linked",
+
+            gtk::Button {
+                add_css_class: "tab",
+                set_halign: gtk::Align::Fill,
+                set_hexpand: true,
+                #[watch]
+                set_label: "Title",
+                connect_clicked => TabInput::Show,
             },
 
-            if self.loaded {
-                gtk::Button::with_label("Unload") {
-                    connect_clicked => TabInput::Unload
-                }
-            } else {
-                gtk::Button::with_label("Load") {
-                    connect_clicked => TabInput::Load
-                }
+            gtk::Button::with_label("Close") {
+                connect_clicked => TabInput::Close,
             },
         }
+
     }
 
     fn init_model(
@@ -58,6 +63,7 @@ impl FactoryComponent for Tab {
         let (id, uri) = init;
         Self {
             id,
+            title: " ".to_string(),
             uri,
             loaded: true,
         }
@@ -65,6 +71,7 @@ impl FactoryComponent for Tab {
 
     fn update(&mut self, msg: Self::Input, sender: relm4::FactorySender<Self>) {
         match msg {
+            TabInput::Show => sender.output(TabOutput::Show(self.id)).unwrap(),
             TabInput::Close => sender
                 .output(TabOutput::Close(self.id, self.loaded))
                 .unwrap(),
