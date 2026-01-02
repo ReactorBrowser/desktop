@@ -6,6 +6,7 @@ use relm4::{
 use webkit6::prelude::*;
 
 use crate::{
+    icon_names,
     page::Page,
     tab::{Tab, TabOutput},
 };
@@ -42,27 +43,18 @@ impl SimpleComponent for View {
                     set_orientation: gtk::Orientation::Vertical,
                     set_margin_all: 10,
                     set_spacing: 5,
+
                     gtk::CenterBox {
                         #[wrap(Some)]
-                        set_start_widget = &gtk::Box {
-                            gtk::Button {}
-                        },
-                        #[wrap(Some)]
                         set_end_widget = &gtk::Box {
-                            add_css_class: "linked",
-                            #[name = "back"]
                             gtk::Button {
-                                set_icon_name?: Some("arrow-left-symbolic"),
-
+                                set_icon_name: icon_names::ARROW_CLOCKWISE_REGULAR,
                             },
-                            #[name = "forward"]
                             gtk::Button {
-                                set_icon_name?: Some("arrow-right-symbolic"),
-
+                                set_icon_name: icon_names::ARROW_UNDO_REGULAR,
                             },
-                            #[name = "reload"]
                             gtk::Button {
-                                set_icon_name?: Some("collection-rescan-amarok-symbolic"),
+                                set_icon_name: icon_names::ARROW_FORWARD_REGULAR,
                             },
                         },
                     },
@@ -95,9 +87,7 @@ impl SimpleComponent for View {
 
 
                 #[local_ref]
-                page_stack -> gtk::Stack {
-                    add_css_class: "page-box",
-                },
+                page_stack -> gtk::Stack {},
             },
         },
     }

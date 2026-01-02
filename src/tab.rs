@@ -2,6 +2,8 @@ use gtk::prelude::{ButtonExt, WidgetExt};
 use reactor_browser::{establish_connection, load_tab, unload_tab};
 use relm4::{gtk, prelude::FactoryComponent};
 
+use crate::icon_names;
+
 pub struct Tab {
     pub id: i32,
     title: String,
@@ -37,8 +39,6 @@ impl FactoryComponent for Tab {
 
     view! {
         gtk::Box {
-            add_css_class: "linked",
-
             gtk::Button {
                 add_css_class: "tab",
                 set_halign: gtk::Align::Fill,
@@ -48,7 +48,9 @@ impl FactoryComponent for Tab {
                 connect_clicked => TabInput::Show,
             },
 
-            gtk::Button::with_label("Close") {
+            gtk::Button {
+                set_icon_name: icon_names::DISMISS_REGULAR,
+                add_css_class: "icon",
                 connect_clicked => TabInput::Close,
             },
         }
