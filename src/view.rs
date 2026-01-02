@@ -7,8 +7,8 @@ use webkit6::prelude::*;
 
 use crate::{
     icon_names,
-    page::Page,
-    tab::{Tab, TabOutput},
+    page::{Page, PageOutput},
+    tab::{Tab, TabInput, TabOutput},
 };
 
 pub struct View {
@@ -24,6 +24,7 @@ pub enum ViewMsg {
     Load(i32, String),
     Unload(i32),
     Back,
+    UpdateTitle(i32, String),
 }
 
 #[relm4::component(pub)]
@@ -63,7 +64,7 @@ impl SimpleComponent for View {
                         set_placeholder_text: Some("Search"),
                     },
 
-                    gtk::Button::with_label("Open new page") {
+                    gtk::Button::with_label("Open a new page") {
                         connect_clicked => ViewMsg::Open("https://www.google.com/".into())
                     },
 
@@ -81,10 +82,8 @@ impl SimpleComponent for View {
             #[wrap(Some)]
             set_end_child = &gtk::Box {
                 set_vexpand: true,
-                add_css_class: "page-box-wrapper",
                 set_margin_all: 16,
                 set_margin_start: 0,
-
 
                 #[local_ref]
                 page_stack -> gtk::Stack {},
@@ -99,7 +98,9 @@ impl SimpleComponent for View {
     ) -> ComponentParts<Self> {
         let pages = FactoryVecDeque::builder()
             .launch(gtk::Stack::default())
-            .detach();
+            .forward(sender.input_sender(), |output| match output {
+                PageOutput::UpdateTitle(id, title) => ViewMsg::UpdateTitle(id, title),
+            });
         let tabs = FactoryVecDeque::builder()
             .launch(gtk::Box::default())
             .forward(sender.input_sender(), |output| match output {
@@ -169,6 +170,16 @@ impl SimpleComponent for View {
                         guard.remove(id);
                     }
                     None => eprintln!("Error unloading page"),
+                }
+            }
+            ViewMsg::UpdateTitle(id, title) => {
+                let guard = self.tabs.guard();
+                let found = guard.iter().position(|t| t.id == id);
+                match found {
+                    Some(id) => {
+                        guard.send(id, TabInput::UpdateTitle(title));
+                    }
+                    None => eprintln!("Error changing tab title"),
                 }
             }
         }

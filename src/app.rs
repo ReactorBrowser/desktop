@@ -23,7 +23,8 @@ impl SimpleComponent for App {
             add_css_class: "root",
             set_default_width: 1000,
             set_default_height: 800,
-           gtk::Box {
+
+            gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
 
                 append = model.view.widget(),

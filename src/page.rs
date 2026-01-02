@@ -9,19 +9,24 @@ pub struct Page {
 }
 
 #[derive(Debug)]
-pub enum PageMsg {
+pub enum PageInput {
     GoBack,
     GoForward,
     Reload,
-    UpdateNavState,
+    UpdateTitle,
+}
+
+#[derive(Debug)]
+pub enum PageOutput {
+    UpdateTitle(i32, String),
 }
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Page {
     type Init = (i32, String);
 
-    type Input = PageMsg;
-    type Output = ();
+    type Input = PageInput;
+    type Output = PageOutput;
 
     type CommandOutput = ();
     type ParentWidget = gtk::Stack;
@@ -30,7 +35,7 @@ impl FactoryComponent for Page {
         #[name(webview)]
         WebView {
             load_uri: &self.uri,
-            add_css_class: "page-box-wrapper",
+            add_css_class: "page-box",
             set_valign: gtk::Align::Fill,
             set_vexpand: true,
             set_halign: gtk::Align::Fill,
@@ -50,6 +55,7 @@ impl FactoryComponent for Page {
                     ).expect("Error creating new history");
                 }
             },
+            connect_title_notify => PageInput::UpdateTitle,
         }
     }
 
@@ -64,11 +70,10 @@ impl FactoryComponent for Page {
         _index: &Self::Index,
         root: Self::Root,
         returned_widget: &<Self::ParentWidget as factory::FactoryView>::ReturnedWidget,
-        _sender: FactorySender<Self>,
+        sender: FactorySender<Self>,
     ) -> Self::Widgets {
         let returned_widget = returned_widget.clone();
         returned_widget.set_name(&self.tab_id.to_string());
-        // root.connect_title_notify(move |webview| {});
 
         let widgets = view_output!();
         widgets
@@ -78,20 +83,27 @@ impl FactoryComponent for Page {
         &mut self,
         widgets: &mut Self::Widgets,
         message: Self::Input,
-        _sender: FactorySender<Self>,
+        sender: FactorySender<Self>,
     ) {
         let webview = &widgets.webview;
         match message {
-            PageMsg::GoBack => {
+            PageInput::GoBack => {
                 webview.go_back();
             }
-            PageMsg::GoForward => {
+            PageInput::GoForward => {
                 webview.go_forward();
             }
-            PageMsg::Reload => {
+            PageInput::Reload => {
                 webview.reload();
             }
-            PageMsg::UpdateNavState => {}
+            PageInput::UpdateTitle => {
+                sender
+                    .output(PageOutput::UpdateTitle(
+                        self.tab_id,
+                        webview.title().unwrap_or_default().into(),
+                    ))
+                    .unwrap();
+            }
         }
     }
 }

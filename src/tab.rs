@@ -17,6 +17,7 @@ pub enum TabInput {
     Close,
     Load,
     Unload,
+    UpdateTitle(String),
 }
 
 #[derive(Debug)]
@@ -44,7 +45,7 @@ impl FactoryComponent for Tab {
                 set_halign: gtk::Align::Fill,
                 set_hexpand: true,
                 #[watch]
-                set_label: "Title",
+                set_label: &self.title,
                 connect_clicked => TabInput::Show,
             },
 
@@ -65,7 +66,7 @@ impl FactoryComponent for Tab {
         let (id, uri) = init;
         Self {
             id,
-            title: " ".to_string(),
+            title: "".to_string(),
             uri,
             loaded: true,
         }
@@ -94,6 +95,13 @@ impl FactoryComponent for Tab {
 
                 self.loaded = false;
                 sender.output(TabOutput::Unload(self.id)).unwrap();
+            }
+            TabInput::UpdateTitle(title) => {
+                if title.len() > 20 {
+                    self.title = String::from(&title[..20]) + "...";
+                } else {
+                    self.title = title;
+                }
             }
         }
     }
