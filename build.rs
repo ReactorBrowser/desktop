@@ -13,7 +13,7 @@ fn main() {
         // List of icons to include
         [
             "arrow-clockwise-regular",
-            "arrow-undo-regular",
+            "arrow-reply-regular",
             "arrow-forward-regular",
             "dismiss-regular",
         ],
