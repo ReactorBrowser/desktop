@@ -97,10 +97,13 @@ impl FactoryComponent for Tab {
                 sender.output(TabOutput::Unload(self.id)).unwrap();
             }
             TabInput::UpdateTitle(title) => {
-                if title.len() > 20 {
-                    self.title = String::from(&title[..20]) + "...";
-                } else {
-                    self.title = title;
+                // Find the byte index of the 20th character
+                match title.char_indices().nth(20) {
+                    Some((byte_index, _)) => {
+                        // Safe to slice because byte_index is a char boundary
+                        self.title = String::from(&title[..byte_index]) + "...";
+                    }
+                    None => self.title = title,
                 }
             }
         }
