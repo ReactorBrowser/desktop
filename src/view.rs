@@ -7,13 +7,14 @@ use webkit6::prelude::*;
 
 use crate::{
     icon_names,
-    page::{Page, PageOutput},
+    page::{Page, PageInput, PageOutput},
     tab::{Tab, TabInput, TabOutput},
 };
 
 pub struct View {
     pages: FactoryVecDeque<Page>,
     tabs: FactoryVecDeque<Tab>,
+    current_id: Option<i32>,
 }
 
 #[derive(Debug)]
@@ -23,7 +24,9 @@ pub enum ViewMsg {
     Close(i32, bool),
     Load(i32, String),
     Unload(i32),
-    Back,
+    GoBack,
+    GoForward,
+    Reload,
     UpdateTitle(i32, String),
 }
 
@@ -41,43 +44,45 @@ impl SimpleComponent for View {
 
             #[wrap(Some)]
             set_start_child = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_margin_all: 10,
-                    set_spacing: 5,
+                set_orientation: gtk::Orientation::Vertical,
+                set_margin_all: 10,
+                set_spacing: 5,
 
-                    gtk::CenterBox {
-                        #[wrap(Some)]
-                        set_end_widget = &gtk::Box {
-                            gtk::Button {
-                                set_icon_name: icon_names::ARROW_CLOCKWISE_REGULAR,
-                            },
-                            gtk::Button {
-                                set_icon_name: icon_names::ARROW_UNDO_REGULAR,
-                            },
-                            gtk::Button {
-                                set_icon_name: icon_names::ARROW_FORWARD_REGULAR,
-                            },
+                gtk::CenterBox {
+                    #[wrap(Some)]
+                    set_end_widget = &gtk::Box {
+                        gtk::Button {
+                            set_icon_name: icon_names::ARROW_CLOCKWISE_REGULAR,
+                            connect_clicked => ViewMsg::Reload,
+                        },
+                        gtk::Button {
+                            set_icon_name: icon_names::ARROW_REPLY_REGULAR,
+                            connect_clicked => ViewMsg::GoBack,
+                        },
+                        gtk::Button {
+                            set_icon_name: icon_names::ARROW_FORWARD_REGULAR,
+                            connect_clicked => ViewMsg::GoForward,
                         },
                     },
+                },
 
-                    gtk::Entry {
-                        set_placeholder_text: Some("Search"),
+                gtk::Entry {
+                    set_placeholder_text: Some("Search"),
+                },
+
+                gtk::Button::with_label("Open a new page") {
+                    connect_clicked => ViewMsg::Open("https://www.google.com/".into())
+                },
+
+                gtk::ScrolledWindow {
+                    set_valign: gtk::Align::Fill,
+                    set_vexpand: true,
+                    #[local_ref]
+                    tab_box -> gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 5,
                     },
-
-                    gtk::Button::with_label("Open a new page") {
-                        connect_clicked => ViewMsg::Open("https://www.google.com/".into())
-                    },
-
-                    gtk::ScrolledWindow {
-                        set_valign: gtk::Align::Fill,
-                        set_vexpand: true,
-                        #[local_ref]
-                        tab_box -> gtk::Box {
-                            set_orientation: gtk::Orientation::Vertical,
-                            set_spacing: 5,
-                        },
-                    },
-
+                },
             },
             #[wrap(Some)]
             set_end_child = &gtk::Box {
@@ -110,7 +115,11 @@ impl SimpleComponent for View {
                 TabOutput::Unload(id) => ViewMsg::Unload(id),
             });
 
-        let mut model = View { pages, tabs };
+        let mut model = View {
+            pages,
+            tabs,
+            current_id: None,
+        };
 
         let page_stack = model.pages.widget();
         let tab_box = model.tabs.widget();
@@ -138,10 +147,12 @@ impl SimpleComponent for View {
                     create_tab(connection, &uri, "New tab".into()).expect("Error saving new tab");
                 self.tabs.guard().push_back((tab.id, uri.clone()));
 
-                sender.input(ViewMsg::Load(tab.id, uri))
+                sender.input(ViewMsg::Load(tab.id, uri));
             }
-            ViewMsg::Back => {}
-            ViewMsg::Show(id) => self.pages.widget().set_visible_child_name(&id.to_string()),
+            ViewMsg::Show(id) => {
+                self.pages.widget().set_visible_child_name(&id.to_string());
+                self.current_id = Some(id);
+            }
             ViewMsg::Close(id, loaded) => {
                 let connection = &mut establish_connection();
 
@@ -149,8 +160,8 @@ impl SimpleComponent for View {
                 let mut guard = self.tabs.guard();
                 let found = guard.iter().position(|t| t.id == id);
                 match found {
-                    Some(id) => {
-                        guard.remove(id);
+                    Some(index) => {
+                        guard.remove(index);
                     }
                     None => eprintln!("Error closing tab"),
                 }
@@ -159,25 +170,62 @@ impl SimpleComponent for View {
                     sender.input(ViewMsg::Unload(id));
                 }
             }
-            ViewMsg::Load(tab_id, uri) => {
-                self.pages.guard().push_back((tab_id, uri));
+            ViewMsg::Load(id, uri) => {
+                self.pages.guard().push_back((id, uri));
+                self.current_id = Some(id);
             }
             ViewMsg::Unload(id) => {
                 let mut guard = self.pages.guard();
-                let found = guard.iter().position(|p| p.tab_id == id);
+                let found = guard.iter().position(|p| p.id == id);
                 match found {
-                    Some(id) => {
-                        guard.remove(id);
+                    Some(index) => {
+                        guard.remove(index);
                     }
                     None => eprintln!("Error unloading page"),
+                }
+            }
+            ViewMsg::Reload => {
+                let guard = self.pages.guard();
+                if let Some(id) = self.current_id {
+                    let found = guard.iter().position(|p| p.id == id);
+                    match found {
+                        Some(index) => {
+                            guard.send(index, PageInput::Reload);
+                        }
+                        None => eprintln!("Error reloading page"),
+                    }
+                }
+            }
+            ViewMsg::GoBack => {
+                let guard = self.pages.guard();
+                if let Some(id) = self.current_id {
+                    let found = guard.iter().position(|p| p.id == id);
+                    match found {
+                        Some(index) => {
+                            guard.send(index, PageInput::GoBack);
+                        }
+                        None => eprintln!("Error going back"),
+                    }
+                }
+            }
+            ViewMsg::GoForward => {
+                let guard = self.pages.guard();
+                if let Some(id) = self.current_id {
+                    let found = guard.iter().position(|p| p.id == id);
+                    match found {
+                        Some(index) => {
+                            guard.send(index, PageInput::GoForward);
+                        }
+                        None => eprintln!("Error going forward"),
+                    }
                 }
             }
             ViewMsg::UpdateTitle(id, title) => {
                 let guard = self.tabs.guard();
                 let found = guard.iter().position(|t| t.id == id);
                 match found {
-                    Some(id) => {
-                        guard.send(id, TabInput::UpdateTitle(title));
+                    Some(index) => {
+                        guard.send(index, TabInput::UpdateTitle(title));
                     }
                     None => eprintln!("Error changing tab title"),
                 }

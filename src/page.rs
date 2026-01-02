@@ -4,7 +4,7 @@ use relm4::{FactorySender, factory, gtk, prelude::FactoryComponent};
 use webkit6::{LoadEvent, Settings, WebView, prelude::WebViewExt};
 
 pub struct Page {
-    pub tab_id: i32,
+    pub id: i32,
     pub uri: String,
 }
 
@@ -60,9 +60,9 @@ impl FactoryComponent for Page {
     }
 
     fn init_model(init: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
-        let (tab_id, uri) = init;
+        let (id, uri) = init;
 
-        Self { tab_id, uri }
+        Self { id, uri }
     }
 
     fn init_widgets(
@@ -73,7 +73,7 @@ impl FactoryComponent for Page {
         sender: FactorySender<Self>,
     ) -> Self::Widgets {
         let returned_widget = returned_widget.clone();
-        returned_widget.set_name(&self.tab_id.to_string());
+        returned_widget.set_name(&self.id.to_string());
 
         let widgets = view_output!();
         widgets
@@ -99,7 +99,7 @@ impl FactoryComponent for Page {
             PageInput::UpdateTitle => {
                 sender
                     .output(PageOutput::UpdateTitle(
-                        self.tab_id,
+                        self.id,
                         webview.title().unwrap_or_default().into(),
                     ))
                     .unwrap();

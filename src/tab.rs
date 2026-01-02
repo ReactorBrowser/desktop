@@ -66,7 +66,7 @@ impl FactoryComponent for Tab {
         let (id, uri) = init;
         Self {
             id,
-            title: "".to_string(),
+            title: "...".to_string(),
             uri,
             loaded: true,
         }
