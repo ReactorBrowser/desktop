@@ -46,16 +46,14 @@ impl FactoryComponent for Tab {
                 set_hexpand: true,
                 #[watch]
                 set_label: &self.title,
-                connect_clicked => TabInput::Show,
+                connect_clicked => TabInput::Show
             },
-
             gtk::Button {
                 set_icon_name: icon_names::DISMISS_REGULAR,
                 add_css_class: "icon",
                 connect_clicked => TabInput::Close,
-            },
+            }
         }
-
     }
 
     fn init_model(
@@ -64,6 +62,7 @@ impl FactoryComponent for Tab {
         _sender: relm4::FactorySender<Self>,
     ) -> Self {
         let (id, uri) = init;
+
         Self {
             id,
             title: "...".to_string(),
@@ -97,13 +96,9 @@ impl FactoryComponent for Tab {
                 sender.output(TabOutput::Unload(self.id)).unwrap();
             }
             TabInput::UpdateTitle(title) => {
-                // Find the byte index of the 20th character
-                match title.char_indices().nth(20) {
-                    Some((byte_index, _)) => {
-                        // Safe to slice because byte_index is a char boundary
-                        self.title = String::from(&title[..byte_index]) + "...";
-                    }
-                    None => self.title = title,
+                self.title = match title.char_indices().nth(20) {
+                    Some((index, _)) => String::from(&title[..index]) + "...",
+                    None => title,
                 }
             }
         }

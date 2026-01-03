@@ -3,30 +3,30 @@ use reactor_browser::{create_history, establish_connection};
 use relm4::{FactorySender, factory, gtk, prelude::FactoryComponent};
 use webkit6::{LoadEvent, Settings, WebView, prelude::WebViewExt};
 
-pub struct Page {
+pub struct Panel {
     pub id: i32,
-    pub uri: String,
+    uri: String,
 }
 
 #[derive(Debug)]
-pub enum PageInput {
+pub enum PanelInput {
+    Reload,
     GoBack,
     GoForward,
-    Reload,
     UpdateTitle,
 }
 
 #[derive(Debug)]
-pub enum PageOutput {
+pub enum PanelOutput {
     UpdateTitle(i32, String),
 }
 
 #[relm4::factory(pub)]
-impl FactoryComponent for Page {
+impl FactoryComponent for Panel {
     type Init = (i32, String);
 
-    type Input = PageInput;
-    type Output = PageOutput;
+    type Input = PanelInput;
+    type Output = PanelOutput;
 
     type CommandOutput = ();
     type ParentWidget = gtk::Stack;
@@ -42,7 +42,7 @@ impl FactoryComponent for Page {
             set_hexpand: true,
             set_settings = &Settings {
                 set_enable_developer_extras: true,
-                set_enable_write_console_messages_to_stdout: true
+                set_enable_write_console_messages_to_stdout: true,
             },
 
             connect_load_changed => |webview, event| {
@@ -55,7 +55,7 @@ impl FactoryComponent for Page {
                     ).expect("Error creating new history");
                 }
             },
-            connect_title_notify => PageInput::UpdateTitle,
+            connect_title_notify => PanelInput::UpdateTitle,
         }
     }
 
@@ -87,18 +87,18 @@ impl FactoryComponent for Page {
     ) {
         let webview = &widgets.webview;
         match message {
-            PageInput::GoBack => {
+            PanelInput::GoBack => {
                 webview.go_back();
             }
-            PageInput::GoForward => {
+            PanelInput::GoForward => {
                 webview.go_forward();
             }
-            PageInput::Reload => {
+            PanelInput::Reload => {
                 webview.reload();
             }
-            PageInput::UpdateTitle => {
+            PanelInput::UpdateTitle => {
                 sender
-                    .output(PageOutput::UpdateTitle(
+                    .output(PanelOutput::UpdateTitle(
                         self.id,
                         webview.title().unwrap_or_default().into(),
                     ))
