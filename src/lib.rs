@@ -1,12 +1,23 @@
 pub mod models;
 pub mod schema;
 
-use std::env;
+use std::{env, error::Error};
 
 use diesel::prelude::*;
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use dotenvy::dotenv;
 
 use crate::models::*;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+
+pub fn run_migrations(
+    conn: &mut SqliteConnection,
+) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    conn.run_pending_migrations(MIGRATIONS)?;
+
+    Ok(())
+}
 
 pub fn establish_connection() -> SqliteConnection {
     dotenv().ok();

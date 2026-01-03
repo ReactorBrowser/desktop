@@ -41,7 +41,6 @@ impl FactoryComponent for Tab {
     view! {
         gtk::Box {
             gtk::Button {
-                add_css_class: "tab",
                 set_halign: gtk::Align::Fill,
                 set_hexpand: true,
                 #[watch]
