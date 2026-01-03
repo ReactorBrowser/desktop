@@ -26,9 +26,8 @@ impl SimpleComponent for App {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
-
                 append = model.view.widget(),
-           }
+            }
         }
     }
 
