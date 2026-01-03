@@ -14,7 +14,7 @@ use crate::{
 pub struct View {
     pages: FactoryVecDeque<Page>,
     tabs: FactoryVecDeque<Tab>,
-    current_id: Option<i32>,
+    selected_tab_index: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -115,19 +115,21 @@ impl SimpleComponent for View {
                 TabOutput::Unload(id) => ViewMsg::Unload(id),
             });
 
+        let connection = &mut establish_connection();
+
+        let stored_tabs = show_tabs(connection).expect("Error loading tabs");
+        let first_loaded_tab = stored_tabs.iter().position(|t| t.loaded);
+
         let mut model = View {
             pages,
             tabs,
-            current_id: None,
+            selected_tab_index: first_loaded_tab,
         };
 
         let page_stack = model.pages.widget();
         let tab_box = model.tabs.widget();
         let widgets = view_output!();
 
-        let connection = &mut establish_connection();
-
-        let stored_tabs = show_tabs(connection).expect("Error loading tabs");
         stored_tabs.iter().for_each(|s| {
             model.tabs.guard().push_back((s.id, s.url.clone()));
             if s.loaded {
@@ -151,7 +153,7 @@ impl SimpleComponent for View {
             }
             ViewMsg::Show(id) => {
                 self.pages.widget().set_visible_child_name(&id.to_string());
-                self.current_id = Some(id);
+                self.selected_tab_index = self.pages.iter().position(|p| p.id == id);
             }
             ViewMsg::Close(id, loaded) => {
                 let connection = &mut establish_connection();
@@ -172,7 +174,6 @@ impl SimpleComponent for View {
             }
             ViewMsg::Load(id, uri) => {
                 self.pages.guard().push_back((id, uri));
-                self.current_id = Some(id);
             }
             ViewMsg::Unload(id) => {
                 let mut guard = self.pages.guard();
@@ -185,47 +186,25 @@ impl SimpleComponent for View {
                 }
             }
             ViewMsg::Reload => {
-                let guard = self.pages.guard();
-                if let Some(id) = self.current_id {
-                    let found = guard.iter().position(|p| p.id == id);
-                    match found {
-                        Some(index) => {
-                            guard.send(index, PageInput::Reload);
-                        }
-                        None => eprintln!("Error reloading page"),
-                    }
+                if let Some(index) = self.selected_tab_index {
+                    self.pages.send(index, PageInput::Reload);
                 }
             }
             ViewMsg::GoBack => {
-                let guard = self.pages.guard();
-                if let Some(id) = self.current_id {
-                    let found = guard.iter().position(|p| p.id == id);
-                    match found {
-                        Some(index) => {
-                            guard.send(index, PageInput::GoBack);
-                        }
-                        None => eprintln!("Error going back"),
-                    }
+                if let Some(index) = self.selected_tab_index {
+                    self.pages.send(index, PageInput::GoBack)
                 }
             }
             ViewMsg::GoForward => {
-                let guard = self.pages.guard();
-                if let Some(id) = self.current_id {
-                    let found = guard.iter().position(|p| p.id == id);
-                    match found {
-                        Some(index) => {
-                            guard.send(index, PageInput::GoForward);
-                        }
-                        None => eprintln!("Error going forward"),
-                    }
+                if let Some(index) = self.selected_tab_index {
+                    self.pages.send(index, PageInput::GoForward);
                 }
             }
             ViewMsg::UpdateTitle(id, title) => {
-                let guard = self.tabs.guard();
-                let found = guard.iter().position(|t| t.id == id);
+                let found = self.tabs.iter().position(|t| t.id == id);
                 match found {
                     Some(index) => {
-                        guard.send(index, TabInput::UpdateTitle(title));
+                        self.tabs.send(index, TabInput::UpdateTitle(title));
                     }
                     None => eprintln!("Error changing tab title"),
                 }
